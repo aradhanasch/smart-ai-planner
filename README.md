@@ -206,24 +206,4 @@ AI-generated insights based on user productivity and study behavior.
 
 ![AI Insights](docs/screenshots/ai-insights.png) -->
 
----
-
-# 🤝 Contributors & Collaboration
-
-This project is built through collaborative efforts.  
-Below are the team members who contributed to the development of the **AI Study Planner + Productivity Tracker**.
-
----
-
-## 👥 Project Contributors
-
-| Name            | Role                             | GitHub Profile                                   |
-| --------------- | -------------------------------- | ------------------------------------------------ |
-| Harsh Pandey    | Frontend Development             | [GitHub](https://github.com/Harsh28Pandey)       |
-| Ayansh Yadav    | Backend Development              | [GitHub](https://github.com/Ayansh252yadav)      |
-| Anmol Yadav     | AI Logic & Scheduling Algorithm  | [GitHub](https://github.com/Anmoly6422)          |
-| Abhay Singh     | Analytics & Performance Tracking | [GitHub](https://github.com/Abhay2110s)          |
-| Anshuman Sharma | Testing & Documentation          | [GitHub](https://github.com/Anshuman-sharma2006) |
-
----
 
