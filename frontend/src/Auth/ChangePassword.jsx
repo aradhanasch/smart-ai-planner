@@ -34,7 +34,7 @@ const ChangePassword = () => {
             setIsLoading(true);
 
             const res = await axios.post(
-                `http://localhost:8000/user/change-password/${email}`,
+                `http://localhost:3000/user/change-password/${email}`,
                 { newPassword, confirmPassword }
             );
 

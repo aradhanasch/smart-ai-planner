@@ -1,47 +1,30 @@
-import jwt from "jsonwebtoken"
-import User from "../models/userModel.js"
+import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
+import asyncHandler from "./asyncHandler.js"; // same folder, so "./" not "../middlewares/"
+import AppError from "../utils/AppError.js";
 
-export const isAuthenticated = async (req, res, next) => {
-    try {
-        const authHeader = req.headers.authorization
+export const isAuthenticated = asyncHandler(async (req, res, next) => { // asyncHandler works here too since middleware is just a function with the same (req, res, next) shape
+    const authHeader = req.headers.authorization; // e.g. "Bearer eyJhbGciOi..."
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({
-                success: false,
-                message: "Access token is messing or invalid"
-            })
-        }
-
-        const token = authHeader.split(" ")[1]
-        jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-            if (err) {
-                if (err.name === "TokenExpiredError") {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Access token has expired, use refreshtoken to generate again"
-                    })
-                }
-                return res.status(400).json({
-                    success: false,
-                    message: "Access token is invalid or missing"
-                })
-            }
-            const { id } = decoded
-            const user = await User.findById(id)
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: "User not found"
-                })
-            }
-
-            req.userId = user._id
-            next()
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        })
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        throw new AppError("Access token is missing or invalid", 401); // 401 = unauthenticated, no valid credentials given at all
     }
-}
+
+    const token = authHeader.split(" ")[1]; // strip the "Bearer " prefix, keep just the token
+
+    let decoded;
+    try { // this inner try/catch is intentional — jwt.verify throws its own error types, and we want to translate them into specific AppErrors, same pattern as verification() in userController.js
+        decoded = jwt.verify(token, process.env.SECRET_KEY); // synchronous form instead of the old callback form — plays nicer with async/await
+    } catch (err) {
+        if (err.name === "TokenExpiredError") {
+            throw new AppError("Access token has expired, please log in again", 401);
+        }
+        throw new AppError("Access token is invalid", 401);
+    }
+
+    const user = await User.findById(decoded.id); // confirm the user in the token still actually exists
+    if (!user) throw new AppError("User not found", 404);
+
+    req.userId = user._id; // this is what every controller reads to scope queries to the logged-in user
+    next(); // hand control to the actual route handler
+});

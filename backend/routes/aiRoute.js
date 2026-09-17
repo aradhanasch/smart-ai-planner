@@ -1,38 +1,40 @@
 import express from "express";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+import asyncHandler from "../middlewares/asyncHandler.js";
+import AppError from "../utils/AppError.js";
+import { isAuthenticated } from "../middlewares/isAuthenticated.js";
 
 const router = express.Router();
 
-const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY
 });
 
-router.post("/chat", async (req, res) => {
+router.post("/chat", isAuthenticated, asyncHandler(async (req, res) => {
+    const { message } = req.body;
 
-    try {
+    if (!message) throw new AppError("Message is required", 400);
 
-        const { message } = req.body;
+    const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: [
+            {
+                role: "user",
+                parts: [
+                    {
+                        text: `You are a helpful study assistant. Answer the student's question clearly and concisely.
 
-        const completion = await client.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: "You are a helpful study assistant." },
-                { role: "user", content: message }
-            ]
-        });
+Student: ${message}`
+                    }
+                ]
+            }
+        ]
+    });
 
-        res.json({
-            reply: completion.choices[0].message.content
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            error: "AI Error"
-        });
-
-    }
-
-});
+    res.json({
+        success: true,
+        reply: response.text
+    });
+}));
 
 export default router;

@@ -3,373 +3,205 @@ import { verifyMail } from "../emailVerify/verifyMail.js"
 import User from "../models/userModel.js"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import asyncHandler from "../middlewares/asyncHandler.js";
+import AppError from "../utils/AppError.js";
 
 /**
  * @route registerUser
  * @description Register a new user
  * @access Public
 */
-export const registerUser = async (req, res) => {
-    try {
-        const { username, email, password, profileImageUrl } = req.body
-        if (!username || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "All fields are required"
-            })
-        }
-
-        const existingUser = await User.findOne({ email })
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                message: "User already exists"
-            })
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10)
-
-        const newUser = await User.create({
-            username,
-            email,
-            password: hashedPassword,
-            profileImageUrl
-        })
-
-        const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY, { expiresIn: '10m' })
-        verifyMail(token, email)
-        newUser.token = token
-        await newUser.save()
-
-        return res.status(201).json({
-            success: true,
-            message: "User registered successfully",
-            data: newUser
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        })
+export const registerUser = asyncHandler(async (req, res) => {
+    const { username, email, password, profileImageUrl } = req.body
+    if (!username || !email || !password) {
+        throw new AppError("All fields are required", 400);
     }
-}
+
+    const existingUser = await User.findOne({ email })
+    if (existingUser) {
+        throw new AppError("User already exists", 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    const newUser = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        profileImageUrl
+    })
+
+    const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY, { expiresIn: '10m' })
+    verifyMail(token, email)
+    newUser.token = token
+    await newUser.save()
+
+    return res.status(201).json({
+        success: true,
+        message: "User registered successfully",
+        data: newUser
+    })
+})
 
 /**
  * @route verification
  * @description Verification of a new user through email
  * @access Private
 */
-export const verification = async (req, res) => {
+export const verification = asyncHandler(async (req, res) => {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        throw new AppError("Authorization token is missing or invalid", 401);
+    }
+
+    const token = authHeader.split(" ")[1]
+
+    // KEEP this inner try/catch — it's converting jwt's own thrown error into
+    // a specific AppError with the right message, not just letting it crash generically
+    let decoded
     try {
-        const authHeader = req.headers.authorization
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({
-                success: false,
-                message: "Authorization token is missing or invalid"
-            })
+        decoded = jwt.verify(token, process.env.SECRET_KEY)
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            throw new AppError("The registration token has expired", 400);
         }
-
-        const token = authHeader.split(" ")[1]
-
-        let decoded
-        try {
-            decoded = jwt.verify(token, process.env.SECRET_KEY)
-        } catch (error) {
-            if (error.name === "TokenExpiredError") {
-                return res.status(400).json({
-                    success: false,
-                    message: "The registration token has expired"
-                })
-            }
-            return res.status(400).json({
-                success: false,
-                message: "Token verification Failed"
-            })
-        }
+        throw new AppError("Token verification Failed", 400);
+    }
 
         const user = await User.findById(decoded.id)
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: "User not found"
-            })
-        }
+    if (!user) throw new AppError("User not found", 400);
 
-        user.token = null
-        user.isVerified = true
-        await user.save()
+    if (user.isVerified) throw new AppError("Account is already verified", 400);
 
-        return res.status(200).json({
-            success: true,
-            message: "Email verified successfully"
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
+    user.token = null
+    user.isVerified = true
+    await user.save()
+
+    return res.status(200).json({ success: true, message: "Email verified successfully" })
+})
 
 /**
  * @route loginUser
  * @description Login a user with email and password
  * @access Public
 */
-export const loginUser = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "All fields are required"
-            });
-        }
-
-        const user = await User.findOne({ email });
-
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "User not found"
-            });
-        }
-
-        const passwordCheck = await bcrypt.compare(password, user.password);
-
-        if (!passwordCheck) {
-            return res.status(401).json({
-                success: false,
-                message: "Incorrect Password"
-            });
-        }
-
-        if (!user.isVerified) {
-            return res.status(403).json({
-                success: false,
-                message: "Verify your account before login"
-            });
-        }
-
-        const token = jwt.sign(
-            { id: user._id },
-            process.env.SECRET_KEY,
-            { expiresIn: "10d" }
-        );
-
-        // ✅ UPDATE LOGIN STATUS
-        user.isLoggedIn = true;
-
-        // ✅ SAVE TOKEN IN DB (optional but you want it)
-        user.token = token;
-
-        await user.save();
-
-        return res.status(200).json({
-            success: true,
-            token,
-            user
-        });
-
-    } catch (error) {
-        console.error("LOGIN ERROR:", error);
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        });
+export const loginUser = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        throw new AppError("All fields are required", 400);
     }
-};
+
+    const user = await User.findOne({ email });
+    if (!user) throw new AppError("User not found", 401);
+
+    const passwordCheck = await bcrypt.compare(password, user.password);
+    if (!passwordCheck) throw new AppError("Incorrect Password", 401);
+
+    if (!user.isVerified) throw new AppError("Verify your account before login", 403);
+
+    const token = jwt.sign(
+        { id: user._id },
+        process.env.SECRET_KEY,
+        { expiresIn: "10d" }
+    );
+
+    user.isLoggedIn = true;
+    user.token = token;
+    await user.save();
+
+    return res.status(200).json({
+        success: true,
+        token,
+        user
+    });
+});
 
 /**
  * @route logoutUser
  * @description Logout a existing user
  * @access Public
 */
-export const logoutUser = async (req, res) => {
-    try {
+export const logoutUser = asyncHandler(async (req, res) => {
+    const userId = req.userId
+    if (!userId) throw new AppError("Unauthorized user", 401);
 
-        const userId = req.userId
+    const user = await User.findById(userId)
+    if (!user) throw new AppError("User not found", 404);
 
-        if (!userId) {
-            return res.status(401).json({
-                success: false,
-                message: "Unauthorized user"
-            })
-        }
+    user.token = null
+    user.isLoggedIn = false
+    await user.save()
 
-        const user = await User.findById(userId)
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            })
-        }
-
-        // logout update
-        user.token = null
-        user.isLoggedIn = false
-
-        await user.save()
-
-        return res.status(200).json({
-            success: true,
-            message: "Logged out successfully"
-        })
-
-    } catch (error) {
-
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
+    return res.status(200).json({ success: true, message: "Logged out successfully" })
+})
 
 /**
  * @route forgotPassword
  * @description Forgot your password through otp sending on your email
  * @access Private
 */
-export const forgotPassword = async (req, res) => {
-    try {
-        const { email } = req.body
-        const user = await User.findOne({ email })
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            })
-        }
+export const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body
+    const user = await User.findOne({ email })
+    if (!user) throw new AppError("User not found", 404);
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString()
-        const expiry = new Date(Date.now() + 10 * 60 * 1000)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiry = new Date(Date.now() + 10 * 60 * 1000)
 
-        user.otp = otp
-        user.otpExpiry = expiry
-        await user.save()
-        await sendOtpMail(email, otp)
+    user.otp = otp
+    user.otpExpiry = expiry
+    await user.save()
+    await sendOtpMail(email, otp)
 
-        return res.status(200).json({
-            success: true,
-            message: "OTP sent successfully"
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
+    return res.status(200).json({ success: true, message: "OTP sent successfully" })
+})
 
 /**
  * @route verifyOTP
  * @description Verify otp sending on your email
  * @access Private
 */
-export const verifyOTP = async (req, res) => {
+export const verifyOTP = asyncHandler(async (req, res) => {
     const { otp } = req.body
     const email = req.params.email
 
-    if (!otp) {
-        return res.status(400).json({
-            success: false,
-            message: "OTP is required"
-        })
-    }
+    if (!otp) throw new AppError("OTP is required", 400);
 
-    try {
-        const user = await User.findOne({ email })
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            })
-        }
+    const user = await User.findOne({ email })
+    if (!user) throw new AppError("User not found", 404);
 
-        if (!user.otp || !user.otpExpiry) {
-            return res.status(400).json({
-                success: false,
-                message: "OTP not generated or already verified"
-            })
-        }
+    if (!user.otp || !user.otpExpiry) throw new AppError("OTP not generated or already verified", 400);
 
-        if (user.otpExpiry < new Date()) {
-            return res.status(400).json({
-                success: false,
-                message: "OTP has expired. Please request a new one"
-            })
-        }
+    if (user.otpExpiry < new Date()) throw new AppError("OTP has expired. Please request a new one", 400);
 
-        if (otp !== user.otp) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid OTP"
-            })
-        }
+    if (otp !== user.otp) throw new AppError("Invalid OTP", 400);
 
-        user.otp = null
-        user.otpExpiry = null
-        await user.save()
+    user.otp = null
+    user.otpExpiry = null
+    await user.save()
 
-        return res.status(200).json({
-            success: true,
-            message: "OTP verified successfully"
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        })
-    }
-}
+    return res.status(200).json({ success: true, message: "OTP verified successfully" })
+})
 
 /**
  * @route changePassword
  * @description Change your password before entering your otp
  * @access Private
 */
-export const changePassword = async (req, res) => {
+export const changePassword = asyncHandler(async (req, res) => {
     const { newPassword, confirmPassword } = req.body
     const email = req.params.email
 
-    if (!newPassword || !confirmPassword) {
-        return res.status(400).json({
-            success: false,
-            message: "All fields are required"
-        })
-    }
+    if (!newPassword || !confirmPassword) throw new AppError("All fields are required", 400);
 
-    if (newPassword !== confirmPassword) {
-        return res.status(400).json({
-            success: false,
-            message: "Password do not match"
-        })
-    }
+    if (newPassword !== confirmPassword) throw new AppError("Password do not match", 400);
 
-    try {
-        const user = await User.findOne({ email })
+    const user = await User.findOne({ email })
+    if (!user) throw new AppError("User not found", 404);
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            })
-        }
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    user.password = hashedPassword
+    await user.save()
 
-        const hashedPassword = await bcrypt.hash(newPassword, 10)
-        user.password = hashedPassword
-        await user.save()
-
-        return res.status(200).json({
-            success: true,
-            message: "Password changed successfully"
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        })
-    }
-}
+    return res.status(200).json({ success: true, message: "Password changed successfully" })
+})

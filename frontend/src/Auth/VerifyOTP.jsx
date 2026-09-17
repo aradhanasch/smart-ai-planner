@@ -73,7 +73,7 @@ const VerifyOTP = () => {
             setError("");
 
             const res = await axios.post(
-                `http://localhost:8000/user/verify-otp/${email}`,
+                `http://localhost:3000/user/verify-otp/${email}`,
                 { otp: finalOtp }
             );
 

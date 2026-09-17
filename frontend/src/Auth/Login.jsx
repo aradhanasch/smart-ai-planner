@@ -4,6 +4,7 @@ import { validateEmail } from "../utils/helper.js";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
+import axiosInstance from "../utils/axiosInstance.js";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -31,10 +32,7 @@ const Login = () => {
             setIsLoading(true);
             setError("");
 
-            const res = await axios.post(
-                "http://localhost:8000/user/login",
-                { email, password }
-            );
+            const res = await axiosInstance.post("/user/login", { email, password });
 
             // console.log("Login Response:", res.data);
 

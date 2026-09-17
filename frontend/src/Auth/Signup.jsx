@@ -19,10 +19,15 @@ const SignUp = () => {
     const navigate = useNavigate();
 
     const handleSignUp = async (e) => {
-        e.preventDefault();
+        e.preventDefault();//stop browser from refreshing the page when the form is submitted
 
         if (!fullName.trim()) {
-            setError("Please enter full name.");
+            setError("Please enter your full name.");
+            return;
+        }
+
+        if (fullName.trim().length < 3) {
+            setError("Full name must be at least 3 characters.");
             return;
         }
 
@@ -49,10 +54,10 @@ const SignUp = () => {
             }
 
             const response = await axiosInstance.post("/user/register", {
-                username: fullName,
+                username: fullName.trim(),
                 email,
                 password,
-                profileImageUrl: profileImageUrl
+                profileImageUrl
             });
 
             // localStorage.setItem("token", response.data.token);
@@ -61,9 +66,15 @@ const SignUp = () => {
             navigate("/verify");
 
         } catch (err) {
-            setError(
-                err.response?.data?.message || "Something went wrong."
-            );
+            const backendErrors = err.response?.data?.errors;
+
+            if (backendErrors?.length) {
+                setError(backendErrors.join(", "));
+            } else {
+                setError(
+                    err.response?.data?.message || "Something went wrong. Please try again."
+                );
+            }
         } finally {
             setIsLoading(false);
         }

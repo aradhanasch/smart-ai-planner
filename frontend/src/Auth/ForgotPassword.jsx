@@ -26,7 +26,7 @@ const ForgotPassword = () => {
             setError("");
 
             const res = await axios.post(
-                "http://localhost:8000/user/forgot-password",
+                "http://localhost:3000/user/forgot-password",
                 { email }
             );
 

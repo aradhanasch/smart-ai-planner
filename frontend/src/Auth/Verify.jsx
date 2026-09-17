@@ -15,7 +15,7 @@ const Verify = () => {
         const verifyEmail = async () => {
             try {
                 const res = await axios.post(
-                    "http://localhost:8000/user/verify",
+                    "http://localhost:3000/user/verify",
                     {},
                     {
                         headers: {
