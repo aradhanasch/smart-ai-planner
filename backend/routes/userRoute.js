@@ -1,5 +1,5 @@
 import express from "express"
-import { changePassword, forgotPassword, loginUser, logoutUser, registerUser, verification, verifyOTP } from "../controllers/userController.js"
+import { changePassword, forgotPassword, loginUser, logoutUser, registerUser, resendVerificationEmail, verification, verifyOTP } from "../controllers/userController.js"
 import { isAuthenticated } from "../middlewares/isAuthenticated.js"
 import { userSchema, validateUser } from "../validators/userValidate.js"
 import upload from "../middlewares/uploadMiddleware.js"
@@ -17,6 +17,12 @@ router.post("/register", validateUser(userSchema), registerUser)
  * - after register go to the verification email to verify your account
 */
 router.post("/verify", verification)
+ 
+/**
+ * - POST /user/resend-verification
+ * - resend the verification email if the user hasn't verified yet
+*/
+router.post("/resend-verification", resendVerificationEmail)
 
 /**
  * - POST /user/login

@@ -31,15 +31,65 @@ export const registerUser = asyncHandler(async (req, res) => {
         profileImageUrl
     })
 
-    const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY, { expiresIn: '10m' })
-    verifyMail(token, email)
+    // 24h instead of 10m — 10 minutes is too short a window for most users to
+    // actually check their inbox, which is exactly what caused this bug.
+    const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY, { expiresIn: '24h' })
+    try {
+        await verifyMail(token, email)
+    } catch (err) {
+        console.error("Failed to send verification email:", err)
+        // don't block registration on email failure
+    }
     newUser.token = token
+    newUser.lastVerificationSentAt = new Date()
     await newUser.save()
 
     return res.status(201).json({
         success: true,
         message: "User registered successfully",
         data: newUser
+    })
+})
+
+/**
+ * @route resendVerificationEmail
+ * @description Resend the verification email to a user who hasn't verified yet
+ * @access Public
+*/
+export const resendVerificationEmail = asyncHandler(async (req, res) => {
+    const { email } = req.body
+    if (!email) throw new AppError("Email is required", 400);
+
+    const user = await User.findOne({ email })
+    // Don't reveal whether the email exists — respond the same way either way
+    if (!user) {
+        return res.status(200).json({
+            success: true,
+            message: "If an account with that email exists, a verification link has been sent."
+        })
+    }
+
+    if (user.isVerified) {
+        throw new AppError("This account is already verified. Please log in.", 400);
+    }
+
+    // Cooldown: block resend spam, 60s between requests
+    const COOLDOWN_MS = 60 * 1000
+    if (user.lastVerificationSentAt && Date.now() - user.lastVerificationSentAt.getTime() < COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((COOLDOWN_MS - (Date.now() - user.lastVerificationSentAt.getTime())) / 1000)
+        throw new AppError(`Please wait ${waitSeconds}s before requesting another verification email`, 429);
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, { expiresIn: '24h' })
+    await verifyMail(token, email)
+
+    user.token = token
+    user.lastVerificationSentAt = new Date()
+    await user.save()
+
+    return res.status(200).json({
+        success: true,
+        message: "Verification email sent. Please check your inbox."
     })
 })
 
