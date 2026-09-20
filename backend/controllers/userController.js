@@ -32,7 +32,12 @@ export const registerUser = asyncHandler(async (req, res) => {
     })
 
     const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY, { expiresIn: '10m' })
-    verifyMail(token, email)
+    try {
+    await verifyMail(token, email)
+    } catch (err) {
+    console.error("Failed to send verification email:", err)
+    // don't block registration on email failure
+    }
     newUser.token = token
     await newUser.save()
 
