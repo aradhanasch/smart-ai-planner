@@ -12,7 +12,6 @@ import userRoute from "./routes/userRoute.js"
 import aiRoute from "./routes/aiRoute.js"
 import studySessionRoute from "./routes/studySessionRoute.js"
 import taskRoute from "./routes/taskRoute.js"
-import cors from "cors"
 import path from "path"
 import errorHandler from "./middlewares/errorHandler.js";
 import cors from "cors"
