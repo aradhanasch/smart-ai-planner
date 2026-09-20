@@ -2,16 +2,14 @@ import dns from "dns";
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 import mongoose from "mongoose"
 
-
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI)
+        await mongoose.connect(process.env.MONGO_URI)
         console.log("MongoDB Connected Successfully")
     } catch (error) {
-        console.log("MongoDB Connection Error: ", error)
-        process.exit(1)
+        console.error("MongoDB Connection Error: ", error.message)
+        process.exit(1)  // crash loudly instead of running with a dead DB
     }
 }
-
 
 export default connectDB
