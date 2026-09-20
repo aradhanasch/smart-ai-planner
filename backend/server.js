@@ -1,5 +1,11 @@
 import express from "express"
 import "dotenv/config"
+import dns from "dns"
+// Prefer IPv4 for all outbound DNS lookups from this process. Railway's
+// containers frequently lack outbound IPv6 routing, and several external
+// services (Gmail SMTP included) resolve to IPv6 addresses first, causing
+// ENETUNREACH errors. Node 18+ only.
+dns.setDefaultResultOrder("ipv4first")
 import connectDB from "./configs/db.js"
 import notesRoute from "./routes/noteRoute.js"
 import userRoute from "./routes/userRoute.js"
