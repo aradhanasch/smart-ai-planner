@@ -12,9 +12,9 @@ import userRoute from "./routes/userRoute.js"
 import aiRoute from "./routes/aiRoute.js"
 import studySessionRoute from "./routes/studySessionRoute.js"
 import taskRoute from "./routes/taskRoute.js"
+import cors from "cors"
 import path from "path"
 import errorHandler from "./middlewares/errorHandler.js";
-import cors from "cors"
 
 const app = express()
 
@@ -23,18 +23,24 @@ app.use(express.json())
 
 // Allow the deployed frontend, any Vercel preview URL for this project, and localhost dev
 const allowedOrigins = [
-    process.env.CLIENT_URL,          
+    process.env.CLIENT_URL,          // e.g. https://smart-ai-planner.vercel.app
     "http://localhost:5173",
 ]
 
 app.use(cors({
     origin: (origin, callback) => {
+        // allow non-browser requests (curl, server-to-server) with no origin
         if (!origin) return callback(null, true)
+
         const isAllowed =
             allowedOrigins.includes(origin) ||
             /^https:\/\/smart-ai-planner.*\.vercel\.app$/.test(origin)
-        if (isAllowed) callback(null, true)
-        else callback(new Error(`CORS blocked for origin: ${origin}`))
+
+        if (isAllowed) {
+            callback(null, true)
+        } else {
+            callback(new Error(`CORS blocked for origin: ${origin}`))
+        }
     },
     credentials: true
 }))

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axiosInstance from "../utils/axiosInstance";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
@@ -14,8 +14,8 @@ const Verify = () => {
     useEffect(() => {
         const verifyEmail = async () => {
             try {
-                const res = await axios.post(
-                    "http://localhost:3000/user/verify",
+                const res = await axiosInstance.post(
+                    "/user/verify",
                     {},
                     {
                         headers: {

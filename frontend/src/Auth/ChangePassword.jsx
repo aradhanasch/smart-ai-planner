@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
-import axios from "axios";
+import axiosInstance from "../utils/axiosInstance";
 
 const ChangePassword = () => {
 
@@ -33,8 +33,8 @@ const ChangePassword = () => {
         try {
             setIsLoading(true);
 
-            const res = await axios.post(
-                `http://localhost:3000/user/change-password/${email}`,
+            const res = await axiosInstance.post(
+                `/user/change-password/${email}`,
                 { newPassword, confirmPassword }
             );
 

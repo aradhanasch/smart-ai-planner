@@ -1,4 +1,4 @@
-import axios from "axios";
+import axiosInstance from "../utils/axiosInstance";
 import { CheckCircle, Loader2, RotateCcw } from "lucide-react";
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -72,8 +72,8 @@ const VerifyOTP = () => {
             setIsLoading(true);
             setError("");
 
-            const res = await axios.post(
-                `http://localhost:3000/user/verify-otp/${email}`,
+            const res = await axiosInstance.post(
+                `/user/verify-otp/${email}`,
                 { otp: finalOtp }
             );
 
@@ -101,8 +101,12 @@ const VerifyOTP = () => {
     // 🔄 Resend OTP
     const resendOtp = async () => {
         try {
-            await axios.post(
-                `http://localhost:8000/user/resend-otp/${email}`
+            // There's no dedicated /resend-otp route on the backend — the
+            // forgot-password endpoint already generates and sends a fresh
+            // OTP, so we reuse it here.
+            await axiosInstance.post(
+                `/user/forgot-password`,
+                { email }
             );
             setTimer(30);
             setSuccessMessage("New OTP sent successfully!");
