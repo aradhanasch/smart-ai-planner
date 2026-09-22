@@ -141,7 +141,7 @@ export const loginUser = asyncHandler(async (req, res) => {
         throw new AppError("All fields are required", 400);
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user) throw new AppError("User not found", 401);
 
     const passwordCheck = await bcrypt.compare(password, user.password);
@@ -159,10 +159,13 @@ export const loginUser = asyncHandler(async (req, res) => {
     user.token = token;
     await user.save();
 
+    const userObj = user.toObject();
+    delete userObj.password;
+
     return res.status(200).json({
         success: true,
         token,
-        user
+        user: userObj
     });
 });
 

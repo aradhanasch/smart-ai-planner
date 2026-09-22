@@ -11,6 +11,7 @@ const router = express.Router();
  */
 router.post("/create", isAuthenticated, createPlan);
 
+router.get("/analytics", isAuthenticated, getAnalytics);
 /**
  * - GET /api/planner/:planId
  * - Get all sessions for a plan
@@ -29,6 +30,5 @@ router.post("/mark-missed", isAuthenticated, markMissed);
  */
 router.post("/mark-completed", isAuthenticated, markCompleted);
 
-router.get("/analytics", isAuthenticated, getAnalytics);
 
 export default router;

@@ -17,7 +17,7 @@ import path from "path"
 import errorHandler from "./middlewares/errorHandler.js";
 
 const app = express()
-
+app.set("trust proxy", 1) 
 //* middlewares
 app.use(express.json())
 

@@ -61,7 +61,6 @@ const SignUp = () => {
             });
 
             // localStorage.setItem("token", response.data.token);
-            localStorage.setItem("token", response.data.data.token);
 
             navigate("/verify");
 

@@ -1,3 +1,4 @@
+import axiosInstance from "../../../utils/axiosInstance.js";
 import React, { useState, useRef } from "react";
 import { Bot, Send, Mic, Trash2 } from "lucide-react";
 
@@ -17,31 +18,25 @@ const AIAssistant = () => {
 
     const recognitionRef = useRef(null);
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
+    if (!message.trim()) return;
 
-        if (!message.trim()) return;
+    const userMessage = { role: "user", text: message };
+    setChat(prev => [...prev, userMessage]);
+    const outgoing = message;
+    setMessage("");
+    setTyping(true);
 
-        const userMessage = { role: "user", text: message };
-
-        setChat(prev => [...prev, userMessage]);
-
-        setMessage("");
-
-        // show typing
-        setTyping(true);
-
-        setTimeout(() => {
-
-            const aiMessage = {
-                role: "ai",
-                text: "AI response will appear here."
-            };
-
-            setChat(prev => [...prev, aiMessage]);
-            setTyping(false);
-
-        }, 1200); // typing delay
-    };
+    try {
+        const res = await axiosInstance.post("/api/ai/chat", { message: outgoing });
+        const aiMessage = { role: "ai", text: res.data.reply };
+        setChat(prev => [...prev, aiMessage]);
+    } catch (err) {
+        setChat(prev => [...prev, { role: "ai", text: "Sorry, something went wrong. Please try again." }]);
+    } finally {
+        setTyping(false);
+    }
+};
 
     const handleKeyDown = (e) => {
         if (e.key === "Enter") sendMessage();
